@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nyame Na Aye - Supermarket Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --bg-color:#f3f4f6;
+  --text-color:#333;
+  --card-bg:#fff;
+  --primary-color:#3b82f6;
+}
+body.dark {
+  --bg-color:#121212;
+  --text-color:#e0e0e0;
+  --card-bg:#1e1e1e;
+  --primary-color:#10b981;
+}
+body {
+  margin:0; font-family:Arial,sans-serif; display:flex; min-height:100vh;
+  background:var(--bg-color); color:var(--text-color); overflow-x:hidden; font-size:14px;
+}
+/* Sidebar */
+aside {width:200px; background:var(--card-bg); box-shadow:2px 0 5px rgba(0,0,0,0.1);
+display:flex; flex-direction:column; padding:35px 15px; overflow-y:auto; position:fixed; height:100%; transition:transform 0.3s ease, left 0.3s ease; z-index:100; left:-23px;}
+aside h2 {font-size:22px; margin-bottom:15px; display:flex; align-items:center; justify-content:space-between; padding-left:10px;}
+aside h2 .close-btn {display:none; font-size:22px; cursor:pointer;}
+nav a {display:flex; align-items:center; gap:8px; padding:6px 10px; margin-bottom:5px; text-decoration:none; color:var(--text-color); border-radius:6px; transition:0.2s; cursor:pointer;}
+nav a:hover {background:rgba(59,130,246,0.1); color:var(--primary-color);}
+nav a.logout:hover {background:#fee2e2;color:#b91c1c;}
+nav a.logout {margin-top:auto;}
+/* Main Content */
+main {flex:1; padding:15px; margin-left:200px; transition:margin-left 0.3s ease;}
+/* Header */
+header {display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; margin-bottom:15px;}
+header h1 {font-size:22px;margin:0;}
+.user-info {display:flex; flex-direction:row; align-items:center; gap:8px; flex-wrap:wrap; background:var(--card-bg); padding:8px 12px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1); font-size:13px;}
+.user-info img {width:35px; height:35px; border-radius:50%; object-fit:cover;}
+/* Cards */
+.cards {display:grid; grid-template-columns: repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-bottom:15px;}
+.card {background:var(--card-bg); padding:10px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); text-align:center;}
+.card span.icon {font-size:28px; display:block; margin-bottom:5px;}
+.card .title {font-weight:bold; margin-bottom:3px; font-size:13px;}
+.card .value {font-size:14px;}
+/* Sections */
+section {display:none;}
+section.active {display:block;}
+/* Loading */
+#loadingOverlay {position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); display:none; justify-content:center; align-items:center; z-index:50;}
+.spinner {border:5px solid #f3f3f3; border-top:5px solid var(--primary-color); border-radius:50%; width:40px; height:40px; animation:spin 1s linear infinite;}
+@keyframes spin { to { transform:rotate(360deg); } }
+/* Table & Form */
+table {width:100%; border-collapse:collapse; margin-top:10px; font-size:12px;}
+th, td {padding:6px; border:1px solid #ddd; text-align:left;}
+th {background:#f3f4f6;}
+body.dark th {background:#1a1a1a;}
+button {padding:4px 8px; border:none; border-radius:6px; cursor:pointer; transition:0.2s; margin:2px; background:var(--primary-color); color:#fff; font-size:12px;}
+button:hover {opacity:0.9;}
+input, select {padding:5px; margin:4px 0; border-radius:6px; border:1px solid #ccc; width:100%; box-sizing:border-box; font-size:13px;}
+.search-box {margin-bottom:8px; padding:5px; border-radius:6px; border:1px solid #ccc; width:100%; box-sizing:border-box; font-size:13px;}
+.btn-edit {background:#facc15;}
+.btn-delete {background:#ef4444;}
+.btn-print {background:#f59e0b;}
+.settings {display:flex; flex-direction:column; gap:8px; margin-top:10px;}
+/* Hamburger */
+.hamburger {display:none;font-size:22px;cursor:pointer;margin-right:8px;}
+/* Responsive */
+@media(max-width:1024px){aside{transform:translateX(-100%); width:200px; position:fixed; z-index:100;} aside.active{transform:translateX(0);} aside h2 .close-btn{display:inline;} main{margin-left:0;} .hamburger{display:block;} }
+@media(max-width:480px){body{font-size:13px;} header h1{font-size:18px;} .user-info{flex-direction:column;align-items:flex-start;gap:3px;padding:6px;} .user-info img{width:40px;height:40px;} .cards{display:flex;overflow-x:auto;gap:8px;} .cards .card{flex:0 0 110px;padding:8px;} table{display:block;overflow-x:auto;white-space:nowrap;font-size:11px;} input, select, button{font-size:12px;padding:5px;} .chart-container{overflow-x:auto;} main{padding:10px;} }
+</style>
+</head>
+<body>
+
+<aside id="sidebar">
+  <h2>Nyame Na Aye <span class="close-btn" onclick="toggleSidebar()">✖</span></h2>
+  <nav>
+    <a onclick="loadPage('dashboard')">📈 <span>Dashboard</span></a>
+    <a onclick="loadPage('products')">📦 <span>Products</span></a>
+    <a onclick="loadPage('sales')">💳 <span>Sales</span></a>
+    <a onclick="loadPage('reports')">📑 <span>Reports</span></a>
+    <a onclick="loadPage('settings')">⚙️ <span>Settings</span></a>
+    <a class="logout" onclick="logout()">🚪 Logout</a>
+  </nav>
+</aside>
+
+<main>
+<header>
+  <div style="display:flex; align-items:center;">
+    <span class="hamburger" onclick="toggleSidebar()">☰</span>
+    <h1 id="pageTitle">Dashboard</h1>
+  </div>
+  <div class="user-info">
+    <img src="logo.png" id="userImage" alt="User">
+    <span id="userName"></span>
+    <span id="loginTime"></span>
+  </div>
+</header>
+
+<!-- Dashboard Section -->
+<section id="dashboardSection" class="active">
+  <div class="cards">
+    <div class="card"><span class="icon">💰</span><div class="title">Sales Today</div><div class="value" id="salesToday">GHS 0</div></div>
+    <div class="card"><span class="icon">📊</span><div class="title">Profit</div><div class="value" id="profitToday">GHS 0</div></div>
+    <div class="card"><span class="icon">📦</span><div class="title">Total Quantity</div><div class="value" id="totalQuantity">0 items</div></div>
+    <div class="card"><span class="icon">⚠️</span><div class="title">Low Stock</div><div class="value" id="lowStock">0 items</div></div>
+  </div>
+  <div class="card chart-container"><canvas id="salesChart" style="max-width:100%;"></canvas></div>
+</section>
+
+<!-- Products Section -->
+<section id="productsSection">
+  <h2>Products</h2>
+  <form id="productForm">
+    <input id="productName" placeholder="Product Name" required>
+    <input type="number" id="productStock" placeholder="Stock" min="0" required>
+    <input type="number" id="productPrice" placeholder="Price" step="0.01" min="0" required>
+    <button type="submit">Add Product</button>
+  </form>
+  <input class="search-box" id="productSearch" placeholder="Search Product..." oninput="searchProducts()">
+  <table>
+    <thead><tr><th>#</th><th>Name</th><th>Stock</th><th>Price</th><th>Action</th></tr></thead>
+    <tbody id="productTable"></tbody>
+  </table>
+</section>
+
+<!-- Sales Section -->
+<section id="salesSection">
+  <h2>Sales</h2>
+  <form id="saleForm">
+    <select id="saleProduct" required onchange="updateStockInfo()"></select>
+    <input type="number" id="saleQuantity" placeholder="Quantity" required min="1">
+    <span id="availableStock" style="font-size:12px;color:gray;"></span>
+    <button type="submit">Add Sale</button>
+  </form>
+  <input class="search-box" id="saleSearch" placeholder="Search Sale..." oninput="searchSales()">
+  <table>
+    <thead><tr><th>#</th><th>Date</th><th>Product</th><th>Qty</th><th>Amount</th><th>Action</th></tr></thead>
+    <tbody id="salesTable"></tbody>
+  </table>
+</section>
+
+<!-- Reports Section -->
+<section id="reportsSection">
+  <h2>Reports</h2>
+  <div class="cards">
+    <div class="card"><div class="title">Total Products</div><div class="value" id="reportProducts">0</div></div>
+    <div class="card"><div class="title">Total Sales</div><div class="value" id="reportSales">GHS 0</div></div>
+    <div class="card"><div class="title">Profit</div><div class="value" id="reportProfit">GHS 0</div></div>
+    <div class="card"><div class="title">Low Stock</div><div class="value" id="reportLowStock">0</div></div>
+  </div>
+  <button class="btn-print" onclick="printReports()">Print Reports</button>
+</section>
+
+<!-- Settings Section -->
+<section id="settingsSection">
+  <h2>Settings</h2>
+  <label>Theme:
+    <select id="themeSelect">
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+    </select>
+  </label>
+  <label>Primary Color:
+    <input type="color" id="colorPicker">
+  </label>
+  <label>Profile Image:
+    <input type="file" id="userImageInput" accept="image/*">
+  </label>
+</section>
+
+<div id="loadingOverlay"><div class="spinner"></div></div>
+
+<script>
+// Sidebar toggle
+function toggleSidebar(){document.getElementById("sidebar").classList.toggle("active");}
+document.querySelectorAll("#sidebar nav a").forEach(a=>{a.addEventListener("click",()=>{if(window.innerWidth<=1024) toggleSidebar();});});
+
+// User info
+const user = JSON.parse(localStorage.getItem('user')) || {fullname: "John Doe"};
+document.getElementById("userName").textContent = user.fullname;
+document.getElementById("loginTime").textContent = "Logged in at "+new Date().toLocaleTimeString();
+
+// Profile Image
+document.getElementById("userImageInput").addEventListener("change", e=>{
+  const file = e.target.files[0];
+  if(file){
+    const reader = new FileReader();
+    reader.onload = ()=> { document.getElementById("userImage").src = reader.result; }
+    reader.readAsDataURL(file);
+  }
+});
+
+// Data
+let products = JSON.parse(localStorage.getItem('products'))||[];
+let sales = JSON.parse(localStorage.getItem('sales'))||[];
+function saveData(){ localStorage.setItem('products',JSON.stringify(products)); localStorage.setItem('sales',JSON.stringify(sales)); }
+
+// Chart
+const ctx = document.getElementById('salesChart');
+const salesChart = new Chart(ctx,{type:'line',data:{labels:[],datasets:[{label:'Sales',data:[],borderColor:'var(--primary-color)',backgroundColor:'rgba(59,130,246,0.1)',tension:0.4}]},options:{responsive:true,plugins:{legend:{display:false}}}});
+
+// Navigation
+function loadPage(page){
+  document.getElementById("loadingOverlay").style.display="flex";
+  setTimeout(()=>{
+    document.querySelectorAll("main section").forEach(sec=>sec.classList.remove('active'));
+    document.getElementById(page+'Section').classList.add('active');
+    document.getElementById("pageTitle").textContent = page.charAt(0).toUpperCase() + page.slice(1);
+    document.getElementById("loadingOverlay").style.display="none";
+    if(page==='sales') updateSaleProductOptions();
+    if(page==='reports') updateReports();
+  },200);
+}
+function logout(){if(confirm("Logout?")){localStorage.clear();window.location.href="index.html";}}
+
+// Products functions
+function renderProducts(){
+  const tbody = document.getElementById("productTable"); tbody.innerHTML="";
+  products.forEach((p,i)=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML=`<td>${i+1}</td><td>${p.name}</td><td>${p.stock}</td><td>${p.price.toFixed(2)}</td>
+    <td><button class="btn-edit" onclick="editProduct(${i})">Edit</button>
+    <button class="btn-delete" onclick="deleteProduct(${i})">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+  updateDashboard(); updateSaleChart();
+}
+function addProduct(name,stock,price){products.push({name,stock:Number(stock),price:Number(price)}); saveData(); renderProducts();}
+function editProduct(index){
+  const p=products[index]; const n=prompt("Name",p.name); const s=prompt("Stock",p.stock); const pr=prompt("Price",p.price);
+  if(n!==null && s!==null && pr!==null){products[index]={name:n,stock:Number(s),price:Number(pr)}; saveData(); renderProducts();}
+}
+function deleteProduct(index){if(confirm("Delete product?")){products.splice(index,1); saveData(); renderProducts();}}
+document.getElementById("productForm").onsubmit=e=>{
+  e.preventDefault();
+  addProduct(document.getElementById("productName").value,
+    document.getElementById("productStock").value,
+    document.getElementById("productPrice").value);
+  document.getElementById("productForm").reset();
+};
+function searchProducts(){
+  const q=document.getElementById("productSearch").value.toLowerCase();
+  document.querySelectorAll("#productTable tr").forEach(tr=>{
+    const name=tr.cells[1].textContent.toLowerCase();
+    tr.style.display=name.includes(q)?'':'none';
+  });
+}
+
+// Sales functions
+function updateSaleProductOptions(){
+  const sel=document.getElementById("saleProduct"); sel.innerHTML="";
+  products.forEach((p,i)=>{sel.innerHTML+=`<option value="${i}" ${p.stock===0?'disabled':''}>${p.name} (${p.stock})</option>`;});
+  updateStockInfo();
+}
+function updateStockInfo(){
+  const index=document.getElementById("saleProduct").value;
+  const stock=products[index]?products[index].stock:0;
+  document.getElementById("availableStock").textContent=`Available stock: ${stock}`;
+  document.getElementById("saleQuantity").max=stock;
+}
+function renderSales(){
+  const tbody=document.getElementById("salesTable"); tbody.innerHTML="";
+  sales.forEach((s,i)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${i+1}</td><td>${s.date}</td><td>${s.product}</td><td>${s.qty}</td><td>${s.amount.toFixed(2)}</td>
+    <td><button class="btn-delete" onclick="deleteSale(${i})">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+  updateDashboard(); updateSaleChart();
+}
+function addSale(productIndex,qty){
+  const p=products[productIndex]; qty=Number(qty);
+  if(qty>p.stock){alert("Not enough stock"); return;}
+  p.stock-=qty; const amt=p.price*qty;
+  sales.push({date:new Date().toLocaleDateString(),product:p.name,qty,amount:amt});
+  saveData(); renderProducts(); renderSales();
+}
+function deleteSale(index){
+  const s=sales[index]; const p=products.find(pr=>pr.name===s.product); if(p) p.stock+=s.qty;
+  sales.splice(index,1); saveData(); renderProducts(); renderSales();
+}
+document.getElementById("saleForm").onsubmit=e=>{
+  e.preventDefault();
+  addSale(document.getElementById("saleProduct").value,document.getElementById("saleQuantity").value);
+  document.getElementById("saleForm").reset();
+  updateStockInfo();
+};
+function searchSales(){
+  const q=document.getElementById("saleSearch").value.toLowerCase();
+  document.querySelectorAll("#salesTable tr").forEach(tr=>{
+    const name=tr.cells[2].textContent.toLowerCase();
+    tr.style.display=name.includes(q)?'':'none';
+  });
+}
+
+// Dashboard update
+function updateDashboard(){
+  document.getElementById("salesToday").textContent=`GHS ${sales.reduce((a,s)=>a+s.amount,0).toFixed(2)}`;
+  document.getElementById("profitToday").textContent=`GHS ${(sales.reduce((a,s)=>a+s.amount,0)*0.2).toFixed(2)}`;
+  document.getElementById("totalQuantity").textContent=`${products.reduce((a,p)=>a+p.stock,0)} items`;
+  document.getElementById("lowStock").textContent=`${products.filter(p=>p.stock<5).length} items`;
+}
+function updateReports(){
+  document.getElementById("reportProducts").textContent=products.length;
+  document.getElementById("reportSales").textContent=`GHS ${sales.reduce((a,s)=>a+s.amount,0).toFixed(2)}`;
+  document.getElementById("reportProfit").textContent=`GHS ${(sales.reduce((a,s)=>a+s.amount,0)*0.2).toFixed(2)}`;
+  document.getElementById("reportLowStock").textContent=products.filter(p=>p.stock<5).length;
+}
+function updateSaleChart(){
+  salesChart.data.labels=sales.map(s=>s.date);
+  salesChart.data.datasets[0].data=sales.map(s=>s.amount);
+  salesChart.update();
+}
+
+// Theme and Color
+document.getElementById("themeSelect").onchange=e=>{
+  document.body.className=e.target.value==='dark'?'dark':'';
+};
+document.getElementById("colorPicker").oninput=e=>{
+  document.documentElement.style.setProperty('--primary-color',e.target.value);
+};
+
+// Print
+function printReports(){window.print();}
+
+// Initial render
+renderProducts(); renderSales();
+</script>
+</body>
+</html>
